@@ -1,0 +1,24 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.18, pytest-8.3.4, pluggy-1.7.0 -- /home/claude/venv/bin/python3.11
+rootdir: /home/claude/onelabpayementtool
+configfile: pytest.ini
+testpaths: tests
+collecting ... collected 15 items
+
+tests/test_generate_data.py::test_planted_counts PASSED                  [  6%]
+tests/test_generate_data.py::test_size_and_reproducible PASSED           [ 13%]
+tests/test_generate_data.py::test_clean_data_settles_exactly_in_october PASSED [ 20%]
+tests/test_reconcile.py::test_each_gap_type_detected_exactly[late] PASSED [ 26%]
+tests/test_reconcile.py::test_each_gap_type_detected_exactly[rounding] PASSED [ 33%]
+tests/test_reconcile.py::test_each_gap_type_detected_exactly[duplicate] PASSED [ 40%]
+tests/test_reconcile.py::test_each_gap_type_detected_exactly[orphan_refund] PASSED [ 46%]
+tests/test_reconcile.py::test_clean_data_has_no_gaps PASSED              [ 53%]
+tests/test_reconcile.py::test_rounding_invisible_per_row_but_visible_in_total PASSED [ 60%]
+tests/test_reconcile.py::test_rounding_always_goes_up PASSED             [ 66%]
+tests/test_reconcile.py::test_bridge_residual_is_zero[1] PASSED          [ 73%]
+tests/test_reconcile.py::test_bridge_residual_is_zero[42] PASSED         [ 80%]
+tests/test_reconcile.py::test_bridge_residual_is_zero[99] PASSED         [ 86%]
+tests/test_reconcile.py::test_duplicate_that_is_also_late_counted_once PASSED [ 93%]
+tests/test_reconcile.py::test_no_floats_in_money_columns PASSED          [100%]
+
+============================== 15 passed in 3.95s ==============================

@@ -21,6 +21,9 @@ ASSUMPTIONS = """
 8. Each record is classified once, in this order: duplicate → orphan refund → late → rounding → unexplained.
 """
 
+SIGN_NOTE = ("Negative = money the platform recorded that the bank hasn't paid yet; "
+             "positive = money the bank paid that the platform didn't expect.")
+
 st.set_page_config(page_title="Month-End Reconciliation Assistant", layout="wide")
 st.title("Month-End Reconciliation Assistant")
 st.caption("Why don't October's platform transactions match the bank's settlements?")
@@ -48,7 +51,7 @@ def show_metrics(result):
     c1, c2, c3 = st.columns(3)
     c1.metric("Platform total", fmt_inr(result["platform_total"]))
     c2.metric("Bank total", fmt_inr(result["bank_total"]))
-    c3.metric("Gap (bank − platform)", fmt_inr(result["total_gap"]))
+    c3.metric("Gap (Bank − Platform)", fmt_inr(result["total_gap"]))
 
 
 def show_waterfall(result):
@@ -118,6 +121,7 @@ def main():
     show_metrics(result)
     show_waterfall(result)
     st.markdown(f"**{summary_line(result)}**")
+    st.caption(SIGN_NOTE)
     if planted is not None:
         show_self_check(result, planted)
     st.subheader("Gaps by category")

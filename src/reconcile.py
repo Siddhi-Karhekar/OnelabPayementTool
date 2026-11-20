@@ -4,6 +4,8 @@ Every txn_id is classified once, in the first category it matches:
 duplicate -> orphan_refund -> late -> rounding -> unexplained.
 impact = (bank amount settled in the month) - (platform amount booked in the month),
 so platform_total + sum(impacts) == bank_total exactly.
+Sign convention: every gap and impact is Bank − Platform. Negative = recorded on the
+platform but not yet paid by the bank; positive = paid by the bank but not expected.
 """
 from datetime import date
 from decimal import Decimal
@@ -142,7 +144,7 @@ def reconcile(transactions_df, settlements_df, month="2026-10"):
 
 
 def summary_line(result) -> str:
-    """'₹X gap = ₹A late + ₹B rounding + ...' in one line."""
+    """'Gap (Bank − Platform): ₹X = ₹A late + ₹B rounding + ...' in one line."""
     b = result["bridge"]
     parts = ""
     for i, c in enumerate([*CATEGORIES, "unexplained"]):
@@ -151,4 +153,4 @@ def summary_line(result) -> str:
             parts = f"{fmt_inr(amount)} {label}"
         else:
             parts += f" {'-' if amount < 0 else '+'} {fmt_inr(abs(amount))} {label}"
-    return f"{fmt_inr(result['total_gap'])} gap = {parts}"
+    return f"Gap (Bank − Platform): {fmt_inr(result['total_gap'])} = {parts}"
