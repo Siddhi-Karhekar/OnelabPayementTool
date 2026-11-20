@@ -6,7 +6,7 @@ import pytest
 
 from src.generate_data import generate
 from src.load import read_settlements, read_transactions
-from src.reconcile import CATEGORIES, reconcile
+from src.reconcile import CATEGORIES, exception_split, reconcile
 
 MONEY_COLUMNS = ["platform_amount", "bank_amount", "impact"]
 
@@ -135,6 +135,21 @@ def test_platform_side_duplicate_is_a_duplicate():
     assert result["bridge"]["unexplained"] == Decimal("0")
 
 
+def test_platform_duplicate_that_is_also_late_is_duplicate_not_late():
+    # Proves check order matters: a 31 Oct payment recorded twice on the platform (bank pays once, in
+    # November) is a Duplicate. Checked as Late, finance would accrue both copies and wait for money
+    # the bank will never send.
+    t, s, planted = generate(seed=42)
+    txn_id = planted["late"][0]
+    t2 = pd.concat([t, t[t.txn_id == txn_id]], ignore_index=True)
+    result = reconcile(t2, s)
+    rows = result["gaps"][result["gaps"].txn_id == txn_id]
+    assert len(rows) == 1 and rows.category.iloc[0] == "duplicate"
+    assert rows.suggested_action.iloc[0] == "Reverse the duplicate platform entry"
+    assert txn_id not in set(result["gaps"].loc[result["gaps"].category == "late", "txn_id"])
+    assert result["bridge"]["unexplained"] == Decimal("0")
+
+
 def test_refund_of_prior_month_sale_is_not_an_orphan():
     # Proves the orphan check looks at every transaction, not just this month's.
     t, s, _ = generate(seed=42, plant_gaps=False)
@@ -145,6 +160,29 @@ def test_refund_of_prior_month_sale_is_not_an_orphan():
          "amount": Decimal("-400.00"), "type": "refund", "original_txn_id": "TXN-S002"}])
     result = reconcile(pd.concat([t, sept], ignore_index=True), _add_settlement(s, "TXN-R002", "-400.00", "2026-10-06"))
     assert result["gaps"].empty
+
+
+def test_gross_exceptions_split(planted_run):
+    # Proves gross = timing + action + booked (+ unexplained), with late as timing, duplicate +
+    # orphan refund as action and rounding as booked; on seed 42 that is ≈ ₹11,176 vs a ₹4,148 net gap.
+    result, _ = planted_run
+    split = exception_split(result)
+    b = result["bridge"]
+    assert split["timing"] == abs(b["late"])
+    assert split["action"] == abs(b["duplicate"]) + abs(b["orphan_refund"])
+    assert split["booked"] == abs(b["rounding"])
+    assert split["gross"] == split["timing"] + split["action"] + split["booked"] + split["unexplained"]
+    assert split["gross"] == Decimal("11175.9003")
+
+
+def test_gross_exceptions_do_not_cancel_within_a_category():
+    # Proves offsetting rows (+₹500 unknown credit, -₹500 missing settlement) add to ₹1,000 gross,
+    # even though they net to ₹0 in the gap.
+    t, s, _ = generate(seed=42, plant_gaps=False)
+    s2 = _add_settlement(s[s.txn_id != t.txn_id.iloc[0]], "TXN-7777", str(t.amount.iloc[0]))
+    split = exception_split(reconcile(t, s2))
+    assert split["unexplained"] == 2 * t.amount.iloc[0]
+    assert split["gross"] == split["unexplained"]
 
 
 def test_no_floats_in_money_columns(planted_run, tmp_path):

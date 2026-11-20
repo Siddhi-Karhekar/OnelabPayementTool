@@ -10,13 +10,14 @@ This tool generates realistic test data for **October 2026**, plants four kinds 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m src.generate_data      # writes data/*.csv and data/planted_gaps.json
-pytest -v                        # 29 tests
+pytest -v                        # 32 tests
 streamlit run app.py
 ```
 
 ## What the app shows
 
 - **Platform total, bank total and Gap (Bank − Platform)** as metric cards.
+- A **Gross exceptions** card: the sum of absolute impacts of every gap row (₹11,175.90 on seed 42, against a ₹4,148.20 net gap). The net gap lets issues offset each other; gross shows the real workload. The caption splits it into **needs action** (duplicate + orphan refund), **timing only** (late settlements, which reverse next month) and, in the tooltip, **booked** (rounding, to the adjustment account). Absolute values are taken per row, so offsetting rows inside one category can't hide each other.
 - A **waterfall bridge** from the platform total, through each gap category, to the bank total.
 - A one-line summary, e.g. `Gap (Bank − Platform): ₹4,148.20 = -₹3,513.85 late settlement + ₹0.23 rounding + ₹4,241.90 duplicate + ₹3,419.92 orphan refund + ₹0.00 unexplained`.
 
@@ -82,12 +83,14 @@ The **bridge** sums impact per category. The unexplained residual is `total gap 
 - Rounding direction: bank > platform on every planted row.
 - Bridge residual is ₹0.00 on seeds 1, 42 and 99.
 - A duplicate that is also late is counted once, as a duplicate.
+- A **platform-side** duplicate that is also late is a duplicate, not late. This is the test that guards the check order: with late checked before duplicate, it is the only test that fails.
 - An orphan refund the bank does settle (₹0 net gap) is still flagged as an orphan.
 - A settlement for a `txn_id` that doesn't exist is unexplained (an unknown bank credit), and raises the residual by exactly its amount.
 - An October settlement of a September payment is explained as belonging to another month.
 - A `txn_id` recorded twice on the platform is a duplicate, not unexplained.
 - A refund of a previous month's sale is not an orphan.
 - Upload validation (`tests/test_load.py`): extra column, missing column, blank amount, ₹ and commas, non-numeric amount, non-ISO date, impossible date, unknown type, many errors summarised.
+- Gross exceptions: gross = timing + action + booked (+ unexplained), equal to ₹11,175.9003 on seed 42; offsetting +₹X/−₹X rows add up instead of cancelling.
 - Decimal safety: no floats in money columns, including after a CSV round trip.
 
 ## Display notes

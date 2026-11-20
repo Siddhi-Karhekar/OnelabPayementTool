@@ -6,7 +6,7 @@ import streamlit as st
 from src.generate_data import generate, save
 from src.money import fmt_inr
 from src.load import DataError, read_settlements, read_transactions
-from src.reconcile import CATEGORIES, LABELS, reconcile, summary_line
+from src.reconcile import CATEGORIES, LABELS, exception_split, reconcile, summary_line
 
 ASSUMPTIONS = """
 1. Single currency INR. Reconciliation month: **October 2026**.
@@ -53,10 +53,21 @@ def load_data():
 
 
 def show_metrics(result):
-    c1, c2, c3 = st.columns(3)
+    split = exception_split(result)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Platform total", fmt_inr(result["platform_total"]))
     c2.metric("Bank total", fmt_inr(result["bank_total"]))
     c3.metric("Gap (Bank − Platform)", fmt_inr(result["total_gap"]))
+    c4.metric("Gross exceptions", fmt_inr(split["gross"]),
+              help=(f"Sum of absolute impacts of every gap row. Needs action (duplicate + orphan refund): "
+                    f"{fmt_inr(split['action'])}. Timing only (late): {fmt_inr(split['timing'])}. "
+                    f"Booked (rounding): {fmt_inr(split['booked'])}. "
+                    f"Unexplained: {fmt_inr(split['unexplained'])}."))
+    caption = (f"Net gap hides offsetting issues — {fmt_inr(split['action'])} needs action, "
+               f"{fmt_inr(split['timing'])} is timing only.")
+    if split["unexplained"]:
+        caption += f" {fmt_inr(split['unexplained'])} is unexplained."
+    c4.caption(caption)
 
 
 def show_waterfall(result):

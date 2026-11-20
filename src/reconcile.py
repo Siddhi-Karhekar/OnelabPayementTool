@@ -160,6 +160,24 @@ def reconcile(transactions_df, settlements_df, month="2026-10"):
             "total_gap": total_gap, "gaps": gaps, "bridge": bridge}
 
 
+def exception_split(result) -> dict:
+    """Gross exceptions = sum of |impact| over every gap row, split by what finance must do.
+
+    timing = late (reverses next month); action = duplicate + orphan refund;
+    booked = rounding (to the adjustment account); unexplained = anything else.
+    Uses per-row absolute values, so offsetting rows inside one category can't hide each other.
+    """
+    gaps = result["gaps"]
+
+    def gross(categories):
+        return _total(abs(v) for v in gaps.loc[gaps.category.isin(categories), "impact"])
+
+    split = {"timing": gross(["late"]), "action": gross(["duplicate", "orphan_refund"]),
+             "booked": gross(["rounding"]), "unexplained": gross(["unexplained"])}
+    split["gross"] = _total(split.values())
+    return split
+
+
 def summary_line(result) -> str:
     """'Gap (Bank − Platform): ₹X = ₹A late + ₹B rounding + ...' in one line."""
     b = result["bridge"]
