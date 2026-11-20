@@ -12,6 +12,7 @@ pip install -r requirements.txt
 python -m src.generate_data      # writes data/*.csv and data/planted_gaps.json
 pytest -v                        # 32 tests
 streamlit run app.py
+python make_zip.py               # builds onelab_submission.zip (see submission/README.md)
 ```
 
 ## What the app shows

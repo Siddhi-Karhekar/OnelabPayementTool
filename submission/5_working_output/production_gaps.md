@@ -1,0 +1,3 @@
+# What this gets wrong in production
+
+In production, banks deposit batched and netted amounts (payments minus refunds in one credit), so transaction-level matching would need a deposit-to-batch layer before it could reconcile against the actual bank statement. Processors usually deduct fees before settlement, so every row would differ by the fee and be misreported as unexplained unless fees are modelled explicitly. Partial settlements, chargebacks and timezone cut-offs (e.g. a payment at 1 Nov 02:00 IST is still 31 Oct in UTC) would also be misclassified, because the engine assumes one full settlement per transaction and a single time zone.
