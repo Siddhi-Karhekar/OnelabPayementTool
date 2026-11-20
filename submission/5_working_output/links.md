@@ -2,6 +2,6 @@
 
 | Item | URL |
 |---|---|
-| Deployed app | PLACEHOLDER: add deployed app URL |
-| GitHub repo | PLACEHOLDER: add GitHub repo URL |
-| Demo video | PLACEHOLDER: add demo video URL |
+| Deployed app | :https://onelabpayementtool-wgumpxnerwdmteecs2uwdw.streamlit.app/ |
+| GitHub repo | PLACEHOLDER: https://github.com/Siddhi-Karhekar/OnelabPayementTool |
+| Demo video | https://drive.google.com/file/d/1GhIBIngB5hhz5JwwaADBAI5sSiG4gfUJ/view?usp=sharing |
