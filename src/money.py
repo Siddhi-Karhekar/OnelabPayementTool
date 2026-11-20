@@ -6,13 +6,6 @@ PAISA = Decimal("0.01")
 TOLERANCE = Decimal("0.01")  # max per-row rounding difference
 
 
-def to_money(value) -> Decimal:
-    """Convert a CSV string (or Decimal) to Decimal. Rejects floats."""
-    if isinstance(value, float):
-        raise TypeError("Floats are not allowed for money; pass a string.")
-    return Decimal(str(value).strip())
-
-
 def bank_round(amount: Decimal) -> Decimal:
     """Round the way the bank does: half-up to 2 decimals."""
     return amount.quantize(PAISA, rounding=ROUND_HALF_UP)

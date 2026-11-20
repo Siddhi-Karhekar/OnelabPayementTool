@@ -10,7 +10,7 @@ This tool generates realistic test data for **October 2026**, plants four kinds 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m src.generate_data      # writes data/*.csv and data/planted_gaps.json
-pytest -v                        # 16 tests
+pytest -v                        # 29 tests
 streamlit run app.py
 ```
 
@@ -36,6 +36,15 @@ streamlit run app.py
 7. **(Added)** A refund with no original sale isn't processed by the bank, so it has no settlement row. This makes the orphan refund show up in the bridge, as books ₹X below the bank, rather than netting to zero. The detection rule ("`original_txn_id` doesn't exist") works whether or not a settlement exists.
 8. **(Added, generator simplification)** Ordinary sample payments are created on 1–29 Oct, so a 1–2 day lag always settles inside October. The only month-end spill is the three planted late payments.
 
+## Upload validation (`src/load.py`)
+
+Uploaded CSVs are checked before anything is reconciled. Problems show as one red message in the app (first 5 problems with row numbers, plus a count), never as a stack trace.
+
+- **Extra columns** are ignored. **Missing columns** are named in the error.
+- **Amounts:** `₹` symbols, spaces and thousands commas (including Indian grouping like `1,25,000.50`) are stripped. Blank or non-numeric amounts are rejected with their row number.
+- **Dates** must be ISO (`YYYY-MM-DD`, optionally with a time) and real calendar dates. A non-ISO date like `01/10/2026` is rejected rather than silently dropping the row out of the month.
+- **`type`** must be exactly `payment` or `refund`.
+
 ## How the engine works (`src/reconcile.py`)
 
 For every `txn_id`:
@@ -46,11 +55,11 @@ So `platform_total + Σ impact = bank_total` holds exactly. Each `txn_id` is cla
 
 | Order | Category | Rule | Suggested action |
 |---|---|---|---|
-| 1 | Duplicate | more than one settlement row for the `txn_id` | Raise with bank; reverse duplicate credit |
-| 2 | Orphan refund | refund whose `original_txn_id` doesn't exist | Investigate: refund issued without a matching sale |
+| 1 | Duplicate | more than one settlement row **or** more than one platform row for the `txn_id` | Bank side: raise with bank; reverse duplicate credit. Platform side: reverse the duplicate platform entry |
+| 2 | Orphan refund | refund whose `original_txn_id` doesn't exist in the **whole** transactions file (any month) | Investigate: refund issued without a matching sale |
 | 3 | Late | booked in October, only settlement is in a later month | Accrue as in-transit; confirm against November statement |
 | 4 | Rounding | 0 < \|impact\| ≤ ₹0.01 | Book to rounding adjustment account |
-| 5 | Unexplained | any other non-zero impact (missing settlement, bank-only row, amount mismatch) | Investigate manually |
+| 5 | Unexplained | any other non-zero impact: missing settlement, amount mismatch, or a bank-only settlement. Bank-only rows say whether the `txn_id` belongs to another month or doesn't exist anywhere | Investigate manually / clear against the earlier month's accrual / investigate unknown bank credit, don't book until matched |
 
 The **bridge** sums impact per category. The unexplained residual is `total gap − the four categories`, and it is ₹0.00 on generated data.
 
@@ -74,6 +83,11 @@ The **bridge** sums impact per category. The unexplained residual is `total gap 
 - Bridge residual is ₹0.00 on seeds 1, 42 and 99.
 - A duplicate that is also late is counted once, as a duplicate.
 - An orphan refund the bank does settle (₹0 net gap) is still flagged as an orphan.
+- A settlement for a `txn_id` that doesn't exist is unexplained (an unknown bank credit), and raises the residual by exactly its amount.
+- An October settlement of a September payment is explained as belonging to another month.
+- A `txn_id` recorded twice on the platform is a duplicate, not unexplained.
+- A refund of a previous month's sale is not an orphan.
+- Upload validation (`tests/test_load.py`): extra column, missing column, blank amount, ₹ and commas, non-numeric amount, non-ISO date, impossible date, unknown type, many errors summarised.
 - Decimal safety: no floats in money columns, including after a CSV round trip.
 
 ## Display notes

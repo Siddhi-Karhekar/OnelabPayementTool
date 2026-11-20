@@ -5,7 +5,8 @@ import streamlit as st
 
 from src.generate_data import generate, save
 from src.money import fmt_inr
-from src.reconcile import CATEGORIES, LABELS, read_settlements, read_transactions, reconcile, summary_line
+from src.load import DataError, read_settlements, read_transactions
+from src.reconcile import CATEGORIES, LABELS, reconcile, summary_line
 
 ASSUMPTIONS = """
 1. Single currency INR. Reconciliation month: **October 2026**.
@@ -41,10 +42,14 @@ def load_data():
             return t, s, planted
         t_file = st.file_uploader("transactions.csv", type="csv")
         s_file = st.file_uploader("settlements.csv", type="csv")
-        if not (t_file and s_file):
-            st.info("Upload both files to reconcile.")
-            st.stop()
+    if not (t_file and s_file):
+        st.info("Upload both transactions.csv and settlements.csv in the sidebar to reconcile.")
+        st.stop()
+    try:
         return read_transactions(t_file), read_settlements(s_file), None
+    except DataError as e:
+        st.error(f"**Can't reconcile this upload.** {e}")
+        st.stop()
 
 
 def show_metrics(result):
