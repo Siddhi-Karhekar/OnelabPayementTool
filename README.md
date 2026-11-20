@@ -10,7 +10,7 @@ This tool generates realistic test data for **October 2026**, plants four kinds 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m src.generate_data      # writes data/*.csv and data/planted_gaps.json
-pytest -v                        # 15 tests
+pytest -v                        # 16 tests
 streamlit run app.py
 ```
 
@@ -34,7 +34,7 @@ streamlit run app.py
 5. Per-row rounding tolerance: ≤ ₹0.01.
 6. Matching is at the transaction level, against the processor's itemised settlement report. Fees, FX and chargebacks are out of scope.
 7. **(Added)** A refund with no original sale isn't processed by the bank, so it has no settlement row. This makes the orphan refund show up in the bridge, as books ₹X below the bank, rather than netting to zero. The detection rule ("`original_txn_id` doesn't exist") works whether or not a settlement exists.
-8. **(Added)** Ordinary sample payments are created on 1–29 Oct, so a 1–2 day lag always settles inside October. The only month-end spill is the three planted late payments.
+8. **(Added, generator simplification)** Ordinary sample payments are created on 1–29 Oct, so a 1–2 day lag always settles inside October. The only month-end spill is the three planted late payments.
 
 ## How the engine works (`src/reconcile.py`)
 
@@ -73,6 +73,7 @@ The **bridge** sums impact per category. The unexplained residual is `total gap 
 - Rounding direction: bank > platform on every planted row.
 - Bridge residual is ₹0.00 on seeds 1, 42 and 99.
 - A duplicate that is also late is counted once, as a duplicate.
+- An orphan refund the bank does settle (₹0 net gap) is still flagged as an orphan.
 - Decimal safety: no floats in money columns, including after a CSV round trip.
 
 ## Display notes
@@ -81,8 +82,8 @@ Money is shown as ₹ with thousands separators and 2 decimals. The **Rounding**
 
 ## Decisions I made
 
-- **Orphan refund has no bank record:** the bank can't refund a sale that never happened, and if it had paid out, the refund would net to ₹0 and vanish from the gap total.
-- **Normal sample payments are dated 1–29 Oct:** otherwise a 30 Oct payment with a 2-day lag would become an extra, unplanned late settlement and break the answer key.
+- **Orphan refund has no bank record:** the bank can't refund a sale that never happened, so the planted orphan shows up in the bridge. Detection doesn't depend on this: if the processor does push it through, the refund nets to ₹0 in the gap but is still flagged as an orphan, and `test_orphan_refund_flagged_even_when_bank_settles_it` covers that case.
+- **Normal sample payments are dated 1–29 Oct (generator simplification):** otherwise a 30 Oct payment with a 2-day lag would become an extra, unplanned late settlement and break the answer key. The cost is that the sample data hides the natural month-end edge case, where ordinary 30–31 Oct payments spill into November. The engine's late rule would catch them, but only the 3 planted 31 Oct payments exercise it.
 - **The Rounding tab shows 4 decimals:** the differences are under one paisa, so at 2 decimals every row would display as ₹0.01 and hide the point.
 - **The waterfall's y-axis is zoomed to the gap range:** starting from ₹0, the ₹0.23 rounding bar and even the ₹3–4k bars were invisible next to the ₹7 lakh totals.
 - **Added `src/money.py` and generator tests:** one place for Decimal parsing, half-up rounding and ₹ formatting keeps money handling consistent, and testing the generator lets pytest run after the first stage and proves the answer key is trustworthy.

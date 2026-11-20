@@ -94,7 +94,9 @@ def _explain(category, txn_id, txn, setts, platform, bank, impact):
     if category == "orphan_refund":
         original = txn.original_txn_id.iloc[0] or "(blank)"
         bank_side = (f"The bank shows no matching debit, so the books are {fmt_inr(impact)} below the bank."
-                     if setts.empty else f"The bank debited {fmt_inr(-_total(setts.amount))}.")
+                     if setts.empty else
+                     f"The bank debited {fmt_inr(-_total(setts.amount))} on {_day(setts.settled_date.iloc[0])}, "
+                     f"so it nets to {fmt_inr(impact)} in the gap, but money left with no matching sale.")
         return (f"{txn_id} is a {fmt_inr(-platform)} refund on {paid} for {original}, "
                 f"which does not exist in the platform records. {bank_side}")
     if txn is None:

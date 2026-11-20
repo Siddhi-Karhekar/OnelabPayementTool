@@ -77,6 +77,21 @@ def test_duplicate_that_is_also_late_counted_once():
     assert result["bridge"]["unexplained"] == Decimal("0")
 
 
+def test_orphan_refund_flagged_even_when_bank_settles_it():
+    # Proves an orphan refund the processor pushed through (₹0 net gap) is still flagged, not hidden.
+    t, s, planted = generate(seed=42)
+    orphan_id = planted["orphan_refund"][0]
+    refund = t[t.txn_id == orphan_id].iloc[0]
+    bank_row = pd.DataFrame([{"settlement_id": "SET-ORPH", "txn_id": orphan_id,
+                              "settled_date": "2026-10-16", "amount": refund.amount}])
+    result = reconcile(t, pd.concat([s, bank_row], ignore_index=True))
+    rows = result["gaps"][result["gaps"].txn_id == orphan_id]
+    assert len(rows) == 1 and rows.category.iloc[0] == "orphan_refund"
+    assert rows.impact.iloc[0] == Decimal("0")
+    assert result["bridge"]["orphan_refund"] == Decimal("0")
+    assert result["bridge"]["unexplained"] == Decimal("0")
+
+
 def test_no_floats_in_money_columns(planted_run, tmp_path):
     # Proves money stays Decimal end to end, including after a CSV round trip.
     result, _ = planted_run
